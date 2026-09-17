@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Command Sketchbook</title>
+<link rel="preload" href="assets/ref/instrument-serif.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/ref/newsreader.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="app/paper.css">
+<style>
+/* ---------- the book ---------- */
+/* minmax(0,1fr), not the implicit auto column, for the same reason as the
+   hero: an auto track sizes to its content and the book would widen the page */
+.sb-wrap{position:relative;z-index:2;width:100%;display:grid;justify-items:center;gap:20px;
+  grid-template-columns:minmax(0,1fr)}
+.sb-stage{position:relative;width:100%;display:flex;align-items:center;justify-content:center;touch-action:pan-y}
+.sb-arrow{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;
+  padding:6px 2px;color:var(--ink-faint);cursor:pointer;transition:color .2s ease;z-index:8;-webkit-tap-highlight-color:transparent}
+.sb-arrow:hover{color:var(--ink)}
+.sb-arrow:disabled{opacity:.25;cursor:default}
+.sb-arrow:focus-visible{outline:2px solid var(--earth);outline-offset:3px}
+/* The book is capped by the height that is actually left on screen, so the
+   caption, the tools and the hint are never pushed under the fold.
+   Zoom changes this real width rather than scaling with a transform. A
+   transform does not move anything else, which is how the turn arrow used
+   to end up sitting on top of the page. Growing the width makes the row
+   reflow, so the arrows are always outside the paper. */
+.sb-3d{position:relative;min-width:0;perspective:1750px;perspective-origin:50% 46%;
+  --base:min(900px, calc((100svh - 310px) * 1.419));
+  flex:0 1 auto;
+  width:calc(var(--base) * var(--zoom,1));
+  /* the height driven width above can exceed a narrow window, so it is
+     capped by what the row actually has. Without this the book pushes the
+     whole page wider than the screen. */
+  max-width:100%;
+  transition:width .28s cubic-bezier(.22,.61,.36,1)}
+.sb-tilt{position:relative;transform-style:preserve-3d;will-change:transform;
+  transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));
+  transition:transform .5s cubic-bezier(.22,.61,.36,1)}
+.sb-tilt.dragging{transition:none}
+.sb-book{position:relative;width:100%;aspect-ratio:1760/1240;transform-style:preserve-3d;z-index:1;--bw:900px}
+
+.sb-cast{position:absolute;pointer-events:none;z-index:0}
+.sb-cast.ambient{left:5%;right:5%;top:27%;bottom:2%;filter:blur(26px);
+  background:radial-gradient(50% 50% at 50% 58%,rgba(58,44,26,.34) 0%,rgba(58,44,26,.19) 40%,rgba(58,44,26,0) 74%)}
+.sb-cast.contact{left:9%;right:9%;top:62%;bottom:10%;filter:blur(11px);
+  background:radial-gradient(50% 44% at 50% 42%,rgba(44,32,14,.40) 0%,rgba(44,32,14,.17) 48%,rgba(44,32,14,0) 78%)}
+.sb-cast.hair{left:12%;right:12%;top:70%;bottom:17%;filter:blur(4px);
+  background:radial-gradient(50% 52% at 50% 40%,rgba(40,28,10,.34) 0%,rgba(40,28,10,0) 76%)}
+
+.half{position:absolute;top:0;bottom:0;width:50%;overflow:clip;background-color:var(--page);
+  background-repeat:no-repeat}
+.half.left{left:0;border-radius:3px 0 0 3px}
+.half.right{left:50%;border-radius:0 3px 3px 0}
+/* The fold, the seam and the page edges are painted into the sheet itself
+   by app/sheet.js, which is AF's own paper model. Nothing is drawn on top. */
+.gutter{display:none}
+
+/* the turning leaf */
+.leaf{position:absolute;top:0;bottom:0;width:50%;transform-style:preserve-3d;z-index:7;
+  will-change:transform;pointer-events:none}
+.leaf.fwd{left:50%;transform-origin:left center;transform:rotateY(var(--a,0deg))}
+.leaf.back{left:0;transform-origin:right center;transform:rotateY(var(--a,0deg))}
+.leaf .face{position:absolute;inset:0;backface-visibility:hidden;background-color:var(--page);overflow:clip;background-repeat:no-repeat;
+  border-radius:0 3px 3px 0}
+.leaf.back .face{border-radius:3px 0 0 3px}
+.leaf .face.rear{transform:rotateY(180deg);border-radius:3px 0 0 3px}
+.leaf.back .face.rear{border-radius:0 3px 3px 0}
+.leaf .face::after{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(43,39,33,.16),transparent 22%)}
+.leaf.back .face::after{background:linear-gradient(270deg,rgba(43,39,33,.16),transparent 22%)}
+
+/* ---------- page content ---------- */
+/* A page with a long warning plus an open result line can run past the
+   foot of the paper. The page scrolls inside itself rather than hiding
+   anything, because the tick and the copy buttons live at the bottom. */
+.pg{position:absolute;inset:0;padding:6.4% 7.2%;display:flex;flex-direction:column;
+  font-size:calc(var(--bw) * .0152);
+  overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+  scrollbar-color:var(--hairline) transparent}
+.pg::-webkit-scrollbar{width:5px}
+.pg::-webkit-scrollbar-thumb{background:var(--hairline);border-radius:3px}
+.pg::-webkit-scrollbar-track{background:transparent}
+.pg .plateno{font-size:calc(var(--bw) * .0115);letter-spacing:.2em;color:var(--ink-faint);
+  font-variant-numeric:tabular-nums}
+.pg .chapter{margin-top:.5em;font-size:calc(var(--bw) * .0112);letter-spacing:var(--track-caps);
+  text-transform:uppercase;color:var(--ink-faint)}
+.pg h2{margin:calc(var(--bw) * .030) 0 0;font-family:var(--display);font-weight:400;
+  font-size:calc(var(--bw) * .0430);line-height:1.04;letter-spacing:.005em}
+.pg .cmdbox{margin-top:calc(var(--bw) * .026);border-top:1px solid var(--hairline);
+  border-bottom:1px solid var(--hairline);padding:calc(var(--bw) * .018) 0}
+.pg .cmdbox code{display:block;font-family:var(--mono);font-size:calc(var(--bw) * .0158);
+  line-height:1.5;color:var(--ink);word-break:break-word}
+.pg .cmdbox .shellmark{margin-top:.55em;font-size:calc(var(--bw) * .0106);letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-faint)}
+.pg .analogy{margin:calc(var(--bw) * .026) 0 0;font-style:italic;color:var(--earth);
+  font-size:calc(var(--bw) * .0175);line-height:1.5}
+.pg .stamps{margin-top:auto;padding-top:calc(var(--bw) * .02);position:relative;z-index:1}
+.pg .stamp{font-size:calc(var(--bw) * .0082)}
+/* a pressed sprig in the lower corner of the plate page, the way a
+   specimen sheet carries one. It fills the page without adding noise. */
+.pg.plateside::after{
+  content:"";position:absolute;right:2%;bottom:6%;width:44%;height:46%;
+  background:url("assets/botany-left.svg") right bottom / contain no-repeat;
+  opacity:.17;pointer-events:none;z-index:0;transform:scaleX(-1)}
+
+.pg .fieldnote{margin-top:calc(var(--bw) * .020);padding-top:calc(var(--bw) * .016);
+  border-top:1px solid var(--hairline)}
+.pg .fieldnote:first-of-type{border-top:0;padding-top:0;margin-top:calc(var(--bw) * .022)}
+.pg .fieldnote .fl{font-size:calc(var(--bw) * .0092)}
+.pg .fieldnote p{margin:.42em 0 0;line-height:1.56;color:var(--ink-note)}
+.pg .caution{margin-top:calc(var(--bw) * .020)}
+.pg .caution b{font-size:calc(var(--bw) * .0092)}
+.pg .caution p{font-size:calc(var(--bw) * .0142)}
+.pg .pagefoot{margin-top:auto;padding-top:calc(var(--bw) * .02);border-top:1px solid var(--hairline)}
+.pg .acts{display:flex;gap:calc(var(--bw) * .008);flex-wrap:wrap;margin-top:calc(var(--bw) * .014)}
+.pg .gbtn{font-size:calc(var(--bw) * .0094);padding:.72em 1em}
+.pg .tick{font-size:calc(var(--bw) * .0152)}
+.pg .resultline{margin-top:calc(var(--bw) * .014)}
+.pg .resultline textarea{min-height:calc(var(--bw) * .086);font-size:calc(var(--bw) * .0148);
+  line-height:calc(var(--bw) * .0268);
+  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--bw) * .0258),var(--hairline) calc(var(--bw) * .0258),var(--hairline) calc(var(--bw) * .0268))}
+.pg .hintline{margin-top:.5em;font-size:calc(var(--bw) * .0098);color:var(--ink-faint)}
+
+/* Zoomed in, the book can run past the bottom of the screen. The tools
+   stay pinned so the way back out is always in reach. The paper halo has
+   no edge, so at normal size it is invisible. */
+#tools{position:sticky;bottom:10px;z-index:30;width:max-content;margin-inline:auto;padding:8px 20px;
+  background:radial-gradient(58% 150% at 50% 50%,rgba(236,231,220,.96) 58%,rgba(236,231,220,0) 100%)}
+
+/* ---------- the loupe ---------- */
+.loupe{position:absolute;left:0;top:0;width:var(--lr,270px);height:var(--lr,270px);
+  opacity:0;pointer-events:none;transition:opacity .25s ease;will-change:transform;z-index:80}
+.loupe.on{opacity:1}
+.loupe .ring{position:absolute;inset:0;border-radius:50%;cursor:grab;pointer-events:auto;
+  box-shadow:0 1px 2px rgba(58,44,26,.30),0 10px 18px rgba(58,44,26,.24),0 26px 40px rgba(58,44,26,.20),0 48px 66px rgba(58,44,26,.13)}
+.loupe.held .ring{cursor:grabbing}
+.loupe .ring::before{content:"";position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background:linear-gradient(146deg,#fdf7e9 0%,#e6d7b4 14%,#b69d70 32%,#7d6740 50%,#cdbb92 66%,#f4ead3 80%,#9b8459 100%);
+  box-shadow:0 1px 1px rgba(255,255,255,.8) inset,0 -2px 3px rgba(70,52,26,.5) inset;
+  -webkit-mask-image:radial-gradient(circle closest-side,transparent 0,transparent 88.2%,#000 89.8%,#000 100%);
+  mask-image:radial-gradient(circle closest-side,transparent 0,transparent 88.2%,#000 89.8%,#000 100%)}
+.loupe .grip{position:absolute;left:50%;top:50%;width:calc(var(--lr,270px) * .74);height:calc(var(--lr,270px) * .125);
+  transform-origin:0 50%;transform:rotate(40deg) translate(calc(var(--lr,270px) * .33),-50%);cursor:grab;pointer-events:auto;
+  background:linear-gradient(rgba(255,255,255,.46) 0,rgba(255,255,255,.46) 13%,rgba(255,255,255,0) 44%,rgba(0,0,0,.26) 100%),
+    linear-gradient(90deg,#d9bd82 0,#d9bd82 14%,#a9884e 14%,#a9884e 20%,#6d4c2b 20%,#6d4c2b 62%,#5a3d22 62%,#5a3d22 92%,rgba(122,86,49,.5) 92%,rgba(122,86,49,.5) 100%);
+  box-shadow:0 8px 15px rgba(58,44,26,.26),0 18px 26px rgba(58,44,26,.14)}
+.lens{position:relative;display:block;width:100%;height:100%;border-radius:50%;overflow:hidden;background:var(--page);
+  box-shadow:0 0 0 1px rgba(52,40,22,.55) inset,0 4px 12px rgba(40,30,14,.28) inset,0 -7px 16px rgba(255,250,240,.14) inset}
+.lens .inner{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+
+/* ---------- contents, the chapter filter ---------- */
+.contents{list-style:none;margin:0 0 clamp(26px,4vh,40px);padding:0;counter-reset:chap;
+  display:grid;grid-template-columns:1fr 1fr;gap:0 clamp(26px,4vw,56px)}
+@media (max-width:720px){.contents{grid-template-columns:1fr}}
+.contents li{counter-increment:chap}
+.contents li.all{counter-increment:none}
+.contents li.all button::before{content:"";min-width:30px}
+.contents button{width:100%;display:flex;align-items:baseline;gap:10px;text-align:left;cursor:pointer;
+  padding:9px 2px;color:var(--ink-soft);transition:color .2s ease,padding-left .25s ease;
+  border-bottom:1px solid var(--hairline);font-size:15px;line-height:1.3}
+.contents button::before{content:counter(chap,upper-roman) ".";flex:0 0 auto;min-width:30px;
+  font-size:10.5px;letter-spacing:.08em;color:var(--ink-faint)}
+.contents button:hover{color:var(--ink);padding-left:10px}
+.contents button:focus-visible{outline:2px solid var(--earth);outline-offset:-2px}
+.contents .nm{flex:0 1 auto}
+.contents .dots{flex:1;min-width:14px;border-bottom:1px dotted var(--hairline);transform:translateY(-4px)}
+.contents .ct{flex:0 0 auto;font-size:11px;letter-spacing:.1em;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.contents button[aria-current="true"]{color:var(--earth)}
+.contents button[aria-current="true"] .ct{color:var(--earth)}
+.contents button[aria-current="true"]::before{color:var(--earth)}
+.contents .ct.has{color:var(--earth)}
+
+/* ---------- index ---------- */
+/* the search and the filters stay put under the fixed masthead, so they
+   are never buried while you are reading down the list */
+.stickytools{position:sticky;top:88px;z-index:20;padding-bottom:8px;
+  background:linear-gradient(to bottom,var(--paper) 0,var(--paper) 88%,rgba(236,231,220,0) 100%)}
+#plates,#notes,#about{scroll-margin-top:104px}
+@media (max-width:640px){.stickytools{top:70px}#plates,#notes,#about{scroll-margin-top:86px}}
+.chapters{display:grid;gap:clamp(30px,5vh,52px)}
+.chapter-block > .section-label{display:flex;align-items:baseline;gap:12px}
+.chapter-block > .section-label .cn{color:var(--earth);font-variant-numeric:tabular-nums}
+.row{display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--hairline)}
+.row .plate{border-bottom:0;flex:1;min-width:0;position:relative}
+/* the plate that is open in the book carries a small lozenge in the margin,
+   which is a different signal from the earth colour that means selected */
+.row .plate[aria-current="true"]{padding-left:16px}
+.row .plate[aria-current="true"]::before{content:"";position:absolute;left:1px;top:calc(50% - 3px);
+  width:6px;height:6px;background:var(--earth);transform:rotate(45deg)}
+/* earth text means the command was run. The lozenge means it is the page
+   the book is open at. Keep the two signals apart. */
+.row .plate[aria-current="true"] .t{color:var(--ink)}
+.row .plate[aria-current="true"].is-on .t{color:var(--earth)}
+.row .plate .t{display:block;overflow-wrap:anywhere}
+.row .tick{flex:0 0 auto;padding:0 2px 0 0}
+.row .tick .box{width:17px;height:17px}
+.rowcmd{font-family:var(--mono);font-size:12px;color:var(--ink-faint);display:block;margin-top:4px;overflow-wrap:anywhere}
+.nothing{padding:60px 0;text-align:center}
+.nothing p{margin:0 0 8px;font-family:var(--display);font-size:26px}
+.nothing span{font-size:14px;color:var(--ink-soft)}
+
+/* ---------- notes sheet ---------- */
+.notes{max-width:1080px;margin:0 auto;padding:clamp(48px,7vh,80px) clamp(20px,5vw,56px)}
+.sheetgrid{display:grid;grid-template-columns:1fr;gap:28px}
+@media (min-width:900px){.sheetgrid{grid-template-columns:300px 1fr}}
+.runlist{list-style:none;margin:0;padding:0}
+.runlist li{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-top:1px solid var(--hairline)}
+.runlist li:first-child{border-top:0}
+.runlist code{flex:1;font-family:var(--mono);font-size:12px;color:var(--ink-soft);overflow-wrap:anywhere}
+.runlist .x{color:var(--ink-faint);cursor:pointer;font-size:15px;line-height:1;padding:0 3px}
+.runlist .x:hover{color:#8c3b2e}
+.runlist .x:focus-visible{outline:2px solid var(--earth)}
+.carbon{background:#e8eade;border:1px solid var(--hairline);padding:18px;position:relative;
+  box-shadow:0 2px 14px rgba(43,39,33,.07)}
+.carbon::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;
+  background:repeating-linear-gradient(90deg,var(--hairline) 0 4px,transparent 4px 9px)}
+.carbon textarea{width:100%;min-height:300px;background:rgba(255,255,255,.5);border:1px solid var(--hairline);
+  font-family:var(--mono);font-size:11.5px;line-height:1.62;color:var(--ink);padding:12px;resize:vertical;margin-top:8px}
+.carbon textarea:focus{outline:none;border-color:var(--ink-faint)}
+.fmtrow{display:flex;gap:16px;margin-top:4px}
+.actcol{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+
+/* On a phone the book cannot hold two facing pages, so it unbinds:
+   the plate and the field notes stack as one sheet. Nothing is hidden,
+   which matters because the tick and the result line live on the right. */
+@media (max-width:760px){
+  .sb-stage{gap:4px}
+  .sb-3d{max-width:100%;perspective:none}
+  .sb-book{aspect-ratio:auto;display:block}
+  .half{position:static;width:100%;overflow:visible}
+  .half.left{border-radius:3px 3px 0 0}
+  .half.right{border-radius:0 0 3px 3px;border-top:1px solid var(--hairline)}
+  .gutter,.leaf,.loupe{display:none}
+  /* Unbound, the pages stack, so a fold down a single page would be wrong.
+     Each page samples a clean strip of the sheet instead, away from both the
+     fold and the cut edge, so it keeps the paper and the tooth without it. */
+  .half{background-size:calc(var(--bw) * 3) 100% !important;
+        background-position-x:calc(var(--bw) * -0.27) !important}
+  .pg{position:static;padding:24px 22px;font-size:15px}
+  .pg .plateno,.pg .chapter{font-size:10.5px}
+  .pg h2{font-size:30px;margin-top:14px}
+  .pg .cmdbox{margin-top:16px;padding:12px 0}
+  .pg .cmdbox code{font-size:13px}
+  .pg .cmdbox .shellmark,.pg .fieldnote .fl,.pg .caution b{font-size:9.5px}
+  .pg .analogy{font-size:17px;margin-top:16px}
+  .pg .stamp{font-size:9px}
+  .pg .stamps,.pg .pagefoot{margin-top:18px;padding-top:14px}
+  .pg .fieldnote{margin-top:14px;padding-top:12px}
+  .pg .caution{margin-top:14px}
+  .pg .caution p{font-size:13.5px}
+  .pg .gbtn{font-size:10.5px;padding:8px 11px}
+  .pg .tick{font-size:15px}
+  .pg .resultline textarea{min-height:56px;font-size:15px;line-height:28px;
+    background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 27px,var(--hairline) 27px,var(--hairline) 28px)}
+  .pg .hintline{font-size:11px}
+  .pg.plateside::after{width:38%;height:22%;bottom:12px}
+  .hero{min-height:0;padding-top:clamp(96px,16svh,130px)}
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#plates">Skip to the list of commands</a>
+<div class="wash"></div>
+
+<header class="top">
+  <div class="name">The Command Sketchbook</div>
+  <nav>
+    <a href="#plates">Plates</a>
+    <a href="#notes">Notes <span class="tally" id="tally"></span></a>
+    <a href="#about">About</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero">
+  <img class="botany l" src="assets/botany-left.svg" alt="" aria-hidden="true">
+  <img class="botany r" src="assets/botany-right.svg" alt="" aria-hidden="true">
+  <p class="hero-kicker">One hundred commands, one to a page</p>
+
+  <div class="sb-wrap">
+    <div class="sb-stage" id="stage">
+      <button class="sb-arrow" id="prev" aria-label="Previous command">
+        <svg viewBox="0 0 14 44" width="14" height="44" fill="none" stroke="currentColor" stroke-width="1.1"><path d="M11 6 L3 22 L11 38"/></svg>
+      </button>
+
+      <div class="sb-3d" id="d3">
+        <div class="sb-cast ambient"></div>
+        <div class="sb-cast contact"></div>
+        <div class="sb-cast hair"></div>
+        <div class="sb-tilt" id="tilt">
+          <div class="sb-book" id="book" tabindex="0" role="group" aria-label="The open sketchbook. Use the left and right arrow keys to turn the page.">
+            <div class="half left"  id="halfL"></div>
+            <div class="half right" id="halfR"></div>
+            <div class="gutter"></div>
+          </div>
+        </div>
+        <div class="loupe" id="loupe" aria-hidden="true">
+          <div class="lens" id="lens"><div class="inner" id="lensInner"></div></div>
+          <div class="ring"></div>
+          <div class="grip"></div>
+        </div>
+      </div>
+
+      <button class="sb-arrow" id="next" aria-label="Next command">
+        <svg viewBox="0 0 14 44" width="14" height="44" fill="none" stroke="currentColor" stroke-width="1.1"><path d="M3 6 L11 22 L3 38"/></svg>
+      </button>
+    </div>
+
+    <div class="sb-captions"><p class="sb-caption" id="cap"></p></div>
+
+    <div class="sb-tools" id="tools">
+      <button class="tool" id="zout" aria-label="Zoom out">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5 L17 17M6.4 9h5.2"/></svg>
+      </button>
+      <span class="zoom-read" id="zread">100%</span>
+      <button class="tool" id="zin" aria-label="Zoom in">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="9" cy="9" r="6"/><path d="M13.5 13.5 L17 17M6.4 9h5.2M9 6.4v5.2"/></svg>
+      </button>
+      <span class="tool-sep"></span>
+      <button class="tool" id="glass" aria-pressed="false" aria-label="Show the reading glass">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8.5" cy="8.5" r="5.6"/><path d="M12.6 12.6 L17.4 17.4"/></svg>
+      </button>
+    </div>
+
+    <p class="sb-hint" id="hint">Drag the page to turn it &middot; drag the glass across it</p>
+  </div>
+</section>
+
+<div class="rule"></div>
+
+<section class="plates" id="plates">
+  <p class="section-label">Contents</p>
+  <ol class="contents" id="contents"></ol>
+
+  <div class="stickytools">
+  <div class="seek">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input id="q" type="search" placeholder="A command, or a problem such as no internet" aria-label="Search by command name or by problem">
+  </div>
+  <div class="filters" id="filters" role="group" aria-label="Filters"></div>
+  </div>
+  <div class="chapters" id="chapters"></div>
+</section>
+
+<div class="rule"></div>
+
+<section class="notes" id="notes">
+  <p class="section-label">Ticket notes</p>
+  <div class="sheetgrid">
+    <div>
+      <p class="fl" style="margin:0 0 10px">Commands run <span id="tot"></span></p>
+      <ul class="runlist" id="runlist"></ul>
+      <div class="actcol">
+        <button class="gbtn" id="copyall">Copy all selected commands</button>
+        <button class="gbtn" id="resetres">Reset results</button>
+        <button class="gbtn warn" id="clearall">Clear selection</button>
+      </div>
+    </div>
+    <div class="carbon">
+      <div class="fmtrow filters" style="padding:0">
+        <button data-fmt="plain" aria-pressed="true">Plain text</button>
+        <button data-fmt="markdown" aria-pressed="false">Markdown</button>
+      </div>
+      <textarea id="note" readonly aria-label="Generated ticket notes"></textarea>
+      <div class="actcol"><button class="gbtn" id="copynote">Copy ticket notes</button></div>
+    </div>
+  </div>
+</section>
+
+<div class="rule short"></div>
+
+<section class="about" id="about">
+  <p class="bio">One hundred Windows commands, one to a page. What it is, what it does, a plain comparison so it stays in the memory, and the moment on a help desk when you would reach for it. Tick the ones you ran, write down what you saw, and the page keeps the note for the ticket. Nothing is ever run from here. Nothing you type is saved to this browser.</p>
+  <img class="bloom" src="assets/botany-right.svg" alt="" aria-hidden="true" style="width:clamp(140px,18vw,240px);opacity:.55">
+</section>
+
+<p class="foot">Every command was checked against Microsoft documentation before it was set. Where two sources disagreed, both readings are kept in the sources file beside this page.</p>
+</main>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<div id="fallback"><div class="sheet">
+  <p style="margin:0 0 10px;font-size:14px">The browser blocked the copy. Select the text below and copy it by hand.</p>
+  <textarea id="fbtext" readonly></textarea>
+  <div style="margin-top:12px"><button class="gbtn" id="fbclose">Close</button></div>
+</div></div>
+
+<script src="app/sheet.js"></script>
+<script src="data/commands.js"></script>
+<script src="app/core.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var idx = 0, fmt = "plain", turning = false, zoom = 1, glassOn = false;
+  var $ = function(s){ return document.querySelector(s); };
+  function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+  function pad3(n){return ("00"+n).slice(-3);}
+
+  var book=$("#book"), halfL=$("#halfL"), halfR=$("#halfR"), tilt=$("#tilt"), d3=$("#d3");
+  var loupe=$("#loupe"), lensInner=$("#lensInner");
+
+  /* ---------- deck: the commands currently in the book ---------- */
+  function deck(){ var v = HD.visible(); return v.length ? v : HD.all(); }
+  function current(){ var d=deck(); if(idx>=d.length) idx=0; return d[idx]; }
+
+  /* ---------- toast and copy ---------- */
+  function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(t._h);
+    t._h=setTimeout(function(){t.classList.remove("on");},1900);}
+  function doCopy(text,label){
+    HD.copy(text).then(function(ok){
+      if(ok){toast(label+" copied");}
+      else{var f=$("#fallback"),b=$("#fbtext");b.value=text;f.classList.add("on");b.focus();b.select();}
+    });
+  }
+  $("#fbclose").onclick=function(){$("#fallback").classList.remove("on");};
+
+  /* ---------- page building ---------- */
+  function leftPage(c){
+    var p=el("div","pg plateside");
+    p.appendChild(el("div","plateno","Plate "+pad3(c.id)));
+    p.appendChild(el("div","chapter",c.category));
+    p.appendChild(el("h2",null,c.name));
+    var box=el("div","cmdbox");
+    box.appendChild(el("code",null,c.command));
+    box.appendChild(el("div","shellmark",c.shell==="Either"?"Command prompt or PowerShell":c.shell));
+    p.appendChild(box);
+    p.appendChild(el("p","analogy",c.analogy));
+    var st=el("div","stamps");
+    HD.labels(c).forEach(function(l){st.appendChild(el("span","stamp "+l.tone,l.text));});
+    p.appendChild(st);
+    return p;
+  }
+
+  function rightPage(c,live){
+    var p=el("div","pg");
+    function note(k,v){
+      var f=el("div","fieldnote");
+      f.appendChild(el("div","fl",k));
+      f.appendChild(el("p",null,v));
+      return f;
+    }
+    p.appendChild(note("What it is",c.whatItIs));
+    p.appendChild(note("What it does",c.whatItDoes));
+    p.appendChild(note("In the field",c.realWorldExample));
+    p.appendChild(note("What to check",c.whatToCheck));
+
+    var w=HD.warning(c);
+    if(w){
+      var cau=el("div","caution"+(c.commandType==="Low-risk change"?" low":""));
+      cau.appendChild(el("b",c.commandType==="Low-risk change"?"Check before you run this":"Caution, this changes the system"));
+      w.forEach(function(t){cau.appendChild(el("p",null,t));});
+      p.appendChild(cau);
+    }
+
+    var foot=el("div","pagefoot");
+    var lab=el("label","tick");
+    var inp=document.createElement("input");inp.type="checkbox";inp.checked=HD.isSelected(c.id);
+    inp.setAttribute("aria-label","Command ran: "+c.name);
+    var bx=el("span","box");
+    bx.innerHTML='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M4 12l6 6L20 5"/></svg>';
+    lab.appendChild(inp);lab.appendChild(bx);lab.appendChild(el("span",null,"Command ran"));
+    foot.appendChild(lab);
+
+    if(live && HD.isSelected(c.id)){
+      var rl=el("div","resultline");
+      var ta=document.createElement("textarea");
+      ta.className="ruled";
+      ta.value=HD.getResult(c.id);
+      ta.placeholder="What did you see? Left empty, the note will say: Not documented.";
+      ta.setAttribute("aria-label","Result for "+c.name);
+      ta.addEventListener("input",function(){HD.setResult(c.id,ta.value);renderNote();});
+      rl.appendChild(ta);
+      rl.appendChild(el("div","hintline","Do not write a password, a token or a recovery key here."));
+      foot.appendChild(rl);
+    }
+
+    var acts=el("div","acts");
+    var b1=el("button","gbtn","Copy command");
+    var b2=el("button","gbtn","Copy with explanation");
+    acts.appendChild(b1);acts.appendChild(b2);
+    foot.appendChild(acts);
+
+    /* The warning is already printed on the page above. The second step is
+       the moment of taking the command away to run it, so the two copy
+       buttons swap for a yes and no in the same row. Swapping in place
+       keeps the page the same height, which matters because the paper
+       does not grow. */
+    function guarded(payload,label){
+      if(!HD.changesSystem(c)){ doCopy(payload,label); return; }
+      if(acts.dataset.asking==="1") return;
+      acts.dataset.asking="1";
+      b1.hidden=true; b2.hidden=true;
+      var go=el("button","gbtn warn","Copy anyway");
+      var no=el("button","gbtn","Cancel");
+      function restore(){ acts.dataset.asking="0"; go.remove(); no.remove(); b1.hidden=false; b2.hidden=false; }
+      go.onclick=function(){ restore(); doCopy(payload,label); b1.focus(); };
+      no.onclick=function(){ restore(); b1.focus(); };
+      acts.appendChild(go); acts.appendChild(no);
+      go.focus();
+    }
+    b1.onclick=function(){guarded(HD.commandText(c),"Command");};
+    b2.onclick=function(){guarded(HD.commandWithExplanation(c),"Command and explanation");};
+
+    if(inp){ inp.onchange=function(){ HD.toggle(c.id,inp.checked); }; }
+    p.appendChild(foot);
+    return p;
+  }
+
+  /* ---------- paint the open spread ---------- */
+  function paint(){
+    var c=current();
+    if(!c) return;
+    halfL.textContent=""; halfR.textContent="";
+    halfL.appendChild(leftPage(c));
+    halfR.appendChild(rightPage(c,true));
+    var d=deck();
+    $("#cap").textContent=c.category+"  .  "+(idx+1)+" of "+d.length;
+    $("#prev").disabled = (idx<=0);
+    $("#next").disabled = (idx>=d.length-1);
+    sizeBook();
+    dressAll();
+    buildLens();
+    stampHash();
+  }
+
+  /* One number drives the whole book: the type on the page, the sheet
+     behind it and the size of the glass all scale off the book's width. */
+  function sizeBook(){
+    var w=book.getBoundingClientRect().width||900;
+    book.style.setProperty("--bw",w+"px");
+    loupe.style.setProperty("--lr", Math.max(150,Math.min(300,w*0.30))+"px");
+  }
+
+  /* AF's paper model, from app/sheet.js. It is generated off the first
+     paint, so the book is readable straight away and the grain arrives a
+     moment later. */
+  function dressAll(){
+    if(!global_SHEET()) return;
+    window.SHEET.dress(halfL,"left");
+    window.SHEET.dress(halfR,"right");
+  }
+  function global_SHEET(){ return window.SHEET && window.SHEET.paper; }
+
+  /* ---------- turning ---------- */
+  function makeLeaf(dir,from,to){
+    var d=deck();
+    var target = dir==="fwd" ? idx+1 : idx-1;
+    if(target<0||target>=d.length) return null;
+    var cur=d[idx], nxt=d[target];
+    var leaf=el("div","leaf "+(dir==="fwd"?"fwd":"back"));
+    var f1=el("div","face"), f2=el("div","face rear");
+    if(dir==="fwd"){ f1.appendChild(rightPage(cur,false)); f2.appendChild(leftPage(nxt)); }
+    else           { f1.appendChild(leftPage(cur));        f2.appendChild(rightPage(nxt,false)); }
+    leaf.appendChild(f1);leaf.appendChild(f2);
+    book.appendChild(leaf);
+    /* a turning leaf shows paper on both sides, so both faces carry the
+       sheet, each shifted to the half of the spread it came from */
+    if(global_SHEET()){
+      if(dir==="fwd"){ window.SHEET.dress(f1,"right"); window.SHEET.dress(f2,"left"); }
+      else           { window.SHEET.dress(f1,"left");  window.SHEET.dress(f2,"right"); }
+    }
+    /* the page revealed underneath */
+    if(dir==="fwd"){ halfR.textContent=""; halfR.appendChild(rightPage(nxt,false)); }
+    else           { halfL.textContent=""; halfL.appendChild(leftPage(nxt)); }
+    leaf.style.setProperty("--a",from+"deg");
+    return leaf;
+  }
+
+  function turn(dir){
+    if(turning) return;
+    var d=deck();
+    var target = dir==="fwd" ? idx+1 : idx-1;
+    if(target<0||target>=d.length) return;
+    if(window.matchMedia("(max-width:760px)").matches){ idx=target; paint(); return; }
+    turning=true;
+    var end = dir==="fwd" ? -180 : 180;
+    var leaf=makeLeaf(dir,0,end);
+    if(!leaf){turning=false;return;}
+    leaf.style.transition="transform .62s cubic-bezier(.32,.05,.2,1)";
+    requestAnimationFrame(function(){
+      requestAnimationFrame(function(){ leaf.style.setProperty("--a",end+"deg"); });
+    });
+    setTimeout(function(){
+      if(leaf.parentNode) leaf.parentNode.removeChild(leaf);
+      idx=target; turning=false; paint();
+    },640);
+  }
+
+  $("#next").onclick=function(){turn("fwd");};
+  $("#prev").onclick=function(){turn("back");};
+  book.addEventListener("keydown",function(e){
+    if(e.key==="ArrowRight"){e.preventDefault();turn("fwd");}
+    else if(e.key==="ArrowLeft"){e.preventDefault();turn("back");}
+  });
+
+  /* drag to turn */
+  (function(){
+    var down=false,x0=0,leaf=null,dir=null,w=1;
+    function start(e){
+      if(turning||window.matchMedia("(max-width:760px)").matches) return;
+      if(e.target.closest(".loupe")||e.target.closest("button")||e.target.closest("textarea")||e.target.closest("label")) return;
+      down=true;x0=e.clientX;w=book.getBoundingClientRect().width||900;leaf=null;dir=null;
+      tilt.classList.add("dragging");
+    }
+    function move(e){
+      if(!down) return;
+      var dx=e.clientX-x0;
+      if(!leaf){
+        if(Math.abs(dx)<12) return;
+        dir = dx<0 ? "fwd" : "back";
+        leaf=makeLeaf(dir,0,0);
+        if(!leaf){down=false;tilt.classList.remove("dragging");return;}
+        leaf.style.transition="none";
+      }
+      var p=Math.max(0,Math.min(1,Math.abs(dx)/(w*0.55)));
+      leaf.style.setProperty("--a",(dir==="fwd"?-180:180)*p+"deg");
+      leaf._p=p;
+    }
+    function end(){
+      if(!down) return;
+      down=false;tilt.classList.remove("dragging");
+      if(!leaf) return;
+      var p=leaf._p||0, target = dir==="fwd" ? idx+1 : idx-1;
+      var finish = p>0.42;
+      leaf.style.transition="transform .42s cubic-bezier(.32,.05,.2,1)";
+      leaf.style.setProperty("--a",(finish?(dir==="fwd"?-180:180):0)+"deg");
+      var lf=leaf; leaf=null; turning=true;
+      setTimeout(function(){
+        if(lf.parentNode) lf.parentNode.removeChild(lf);
+        if(finish) idx=target;
+        turning=false; paint();
+      },440);
+    }
+    book.addEventListener("pointerdown",start);
+    window.addEventListener("pointermove",move);
+    window.addEventListener("pointerup",end);
+    window.addEventListener("pointercancel",end);
+  })();
+
+  /* ---------- zoom ---------- */
+  function setZoom(z){
+    zoom=Math.max(.8,Math.min(1.6,Math.round(z*20)/20));
+    /* set on the sizing box, not on the tilt, because the width lives there */
+    d3.style.setProperty("--zoom",zoom);
+    $("#zread").textContent=Math.round(zoom*100)+"%";
+    $("#zout").disabled = zoom<=.8;
+    $("#zin").disabled = zoom>=1.6;
+    /* the page type is sized from the measured book width, so remeasure
+       once the width transition has settled */
+    setTimeout(function(){ sizeBook(); if(glassOn) buildLens(); },300);
+  }
+  $("#zin").onclick=function(){setZoom(zoom+.1);};
+  $("#zout").onclick=function(){setZoom(zoom-.1);};
+
+  /* ---------- tilt with the pointer ---------- */
+  d3.addEventListener("pointermove",function(e){
+    if(window.matchMedia("(pointer:coarse)").matches) return;
+    var r=d3.getBoundingClientRect();
+    var rx=((e.clientY-r.top)/r.height-.5)*-2.2;
+    var ry=((e.clientX-r.left)/r.width-.5)*3.4;
+    tilt.style.setProperty("--rx",rx.toFixed(2)+"deg");
+    tilt.style.setProperty("--ry",ry.toFixed(2)+"deg");
+  });
+  d3.addEventListener("pointerleave",function(){
+    tilt.style.setProperty("--rx","0deg");tilt.style.setProperty("--ry","0deg");
+  });
+
+  /* ---------- the reading glass ---------- */
+  function buildLens(){
+    if(!glassOn) return;
+    lensInner.textContent="";
+    var clone=el("div");
+    var r=book.getBoundingClientRect();
+    clone.style.width=r.width+"px";
+    clone.style.height=r.height+"px";
+    clone.style.position="relative";
+    clone.style.background="var(--page)";
+    var a=halfL.cloneNode(true), b=halfR.cloneNode(true);
+    Array.prototype.forEach.call([a,b],function(n){
+      n.removeAttribute("id");
+      Array.prototype.forEach.call(n.querySelectorAll("textarea,input,button"),function(x){
+        if(x.tagName==="TEXTAREA"){var d=el("div");d.textContent=x.value||x.placeholder;
+          d.style.cssText="font-family:var(--font);color:var(--ink-faint);line-height:1.6";x.replaceWith(d);}
+        else x.setAttribute("tabindex","-1");
+      });
+    });
+    clone.appendChild(a);clone.appendChild(b);
+    lensInner.appendChild(clone);
+  }
+  function placeLens(cx,cy){
+    var Z=2.15;
+    var R=loupe.getBoundingClientRect().width/2;
+    lensInner.style.transform="translate("+(-cx*Z+R)+"px,"+(-cy*Z+R)+"px) scale("+Z+")";
+  }
+  function moveLoupe(cx,cy){
+    var r=book.getBoundingClientRect(), d=d3.getBoundingClientRect();
+    var R=loupe.getBoundingClientRect().width/2;
+    loupe.style.transform="translate("+(cx+r.left-d.left-R)+"px,"+(cy+r.top-d.top-R)+"px)";
+    placeLens(cx,cy);
+  }
+  $("#glass").onclick=function(){
+    glassOn=!glassOn;
+    this.setAttribute("aria-pressed",String(glassOn));
+    loupe.classList.toggle("on",glassOn);
+    if(glassOn){
+      buildLens();
+      var r=book.getBoundingClientRect();
+      moveLoupe(r.width*0.33,r.height*0.45);
+      $("#hint").classList.remove("gone");
+    }
+  };
+  (function(){
+    var held=false;
+    function grab(e){ if(!glassOn) return; held=true; loupe.classList.add("held"); e.preventDefault(); }
+    function drag(e){
+      if(!held) return;
+      var r=book.getBoundingClientRect();
+      moveLoupe(Math.max(0,Math.min(r.width,e.clientX-r.left)),Math.max(0,Math.min(r.height,e.clientY-r.top)));
+    }
+    function drop(){ held=false; loupe.classList.remove("held"); }
+    loupe.addEventListener("pointerdown",grab);
+    window.addEventListener("pointermove",drag);
+    window.addEventListener("pointerup",drop);
+  })();
+
+  /* ---------- filters and index ---------- */
+  var FILTERS=[["info","Information only"],["change","Changes the system"],["admin","Administrator"],["restart","Restart needed"],["selected","Selected"]];
+  var fbox=$("#filters");
+  FILTERS.forEach(function(f){
+    var b=el("button",null,f[1]);b.dataset.k=f[0];b.setAttribute("aria-pressed","false");
+    b.onclick=function(){idx=0;HD.toggleFilter(f[0]);};fbox.appendChild(b);
+  });
+  var clr=el("button",null,"Clear");
+  clr.onclick=function(){$("#q").value="";idx=0;HD.clearFilters();};
+  fbox.appendChild(clr);
+  $("#q").addEventListener("input",function(e){idx=0;HD.setQuery(e.target.value);});
+
+  function renderIndex(){
+    var box=$("#chapters");box.textContent="";
+    var v=HD.visible();
+    if(!v.length){
+      var n=el("div","nothing");
+      n.appendChild(el("p","Nothing on this page."));
+      n.appendChild(el("span","Try another word, or clear the filters."));
+      var b=el("button","gbtn","Clear filters");
+      b.style.marginTop="16px";
+      b.onclick=function(){$("#q").value="";idx=0;HD.clearFilters();};
+      n.appendChild(b);box.appendChild(n);return;
+    }
+    var order=[],groups={},cur=current();
+    v.forEach(function(c){ if(!groups[c.category]){groups[c.category]=[];order.push(c.category);} groups[c.category].push(c); });
+    order.forEach(function(cat){
+      var blk=el("div","chapter-block");
+      var lab=el("p","section-label");
+      lab.appendChild(el("span",null,cat));
+      lab.appendChild(el("span","cn",String(groups[cat].length)));
+      blk.appendChild(lab);
+      var ul=el("ul","plate-list");
+      groups[cat].forEach(function(c){
+        var li=el("li","row");
+        var b=el("button","plate");
+        b.appendChild(el("span","n",pad3(c.id)));
+        var t=el("span","t",c.name);
+        var wrap=el("span");wrap.style.flex="1";wrap.appendChild(t);
+        wrap.appendChild(el("span","rowcmd",c.command));
+        b.appendChild(wrap);
+        b.appendChild(el("span","p",c.commandType));
+        if(HD.isSelected(c.id)) b.className+=" is-on";
+        if(cur && c.id===cur.id) b.setAttribute("aria-current","true");
+        b.onclick=function(){
+          var d=deck();
+          for(var i=0;i<d.length;i++){ if(d[i].id===c.id){ idx=i; break; } }
+          paint();
+          document.querySelector(".hero").scrollIntoView({behavior:"smooth",block:"start"});
+        };
+        var lab2=el("label","tick");
+        var inp=document.createElement("input");inp.type="checkbox";inp.checked=HD.isSelected(c.id);
+        inp.setAttribute("aria-label","Command ran: "+c.name);
+        var bx=el("span","box");
+        bx.innerHTML='<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M4 12l6 6L20 5"/></svg>';
+        lab2.appendChild(inp);lab2.appendChild(bx);
+        inp.onchange=function(){HD.toggle(c.id,inp.checked);};
+        li.appendChild(b);li.appendChild(lab2);
+        ul.appendChild(li);
+      });
+      blk.appendChild(ul);
+      box.appendChild(blk);
+    });
+  }
+
+  /* The open plate gets its own address, so a plate can be bookmarked or
+     sent to someone. Only a plate hash is touched; the Plates, Notes and
+     About anchors are left alone. */
+  function stampHash(){
+    var c=current(); if(!c) return;
+    var want="#plate-"+pad3(c.id);
+    if(location.hash!==want && /^#(plate-\d{3})?$/.test(location.hash||"#")){
+      try{ history.replaceState(null,"",want); }catch(e){}
+    }
+  }
+  function readHash(){
+    var m=/^#plate-(\d{1,3})$/.exec(location.hash||"");
+    if(!m) return false;
+    var id=Number(m[1]), d=deck();
+    for(var i=0;i<d.length;i++){ if(d[i].id===id){ idx=i; return true; } }
+    return false;
+  }
+
+  function renderContents(){
+    var ol=$("#contents"); ol.textContent="";
+    var cats=HD.categories();
+    function entry(name,total,sel,isAll){
+      var li=el("li",isAll?"all":null), b=el("button");
+      b.appendChild(el("span","nm",isAll?"All plates":name));
+      b.appendChild(el("span","dots"));
+      b.appendChild(el("span","ct"+(sel?" has":""),sel?sel+" of "+total:String(total)));
+      b.setAttribute("aria-current", HD.state.category===(isAll?"All":name) ? "true" : "false");
+      b.onclick=function(){ idx=0; HD.setCategory(isAll?"All":name); };
+      li.appendChild(b); ol.appendChild(li);
+    }
+    entry("All",HD.all().length,HD.selectedCount(),true);
+    cats.forEach(function(c){ entry(c.name,c.total,c.selected,false); });
+  }
+
+  /* ---------- notes ---------- */
+  function renderRun(){
+    var ul=$("#runlist");ul.textContent="";
+    var list=HD.selectedCommands();
+    $("#tot").textContent=list.length+" of "+HD.all().length;
+    $("#tally").textContent=list.length?String(list.length):"";
+    if(!list.length){ul.appendChild(el("li","fl","Nothing selected yet"));return;}
+    list.forEach(function(c){
+      var li=el("li");
+      li.appendChild(el("code",null,c.command));
+      var x=el("button","x","x");x.setAttribute("aria-label","Remove "+c.command);
+      x.onclick=function(){HD.clearOne(c.id);};
+      li.appendChild(x);ul.appendChild(li);
+    });
+  }
+  function renderNote(){ $("#note").value=HD.ticketNotes(fmt); }
+
+  $("#copyall").onclick=function(){var t=HD.allSelectedCommandsText();if(!t){toast("Nothing selected");return;}doCopy(t,"Selected commands");};
+  $("#copynote").onclick=function(){if(!HD.selectedCount()){toast("Nothing selected");return;}doCopy(HD.ticketNotes(fmt),"Ticket notes");};
+  $("#clearall").onclick=function(){if(!HD.selectedCount()){toast("Nothing selected");return;}HD.clearAllSelected();toast("Selection cleared");};
+  $("#resetres").onclick=function(){if(!HD.selectedCount()){toast("Nothing selected");return;}HD.resetResults();toast("Results cleared");};
+  Array.prototype.forEach.call(document.querySelectorAll("[data-fmt]"),function(b){
+    b.onclick=function(){fmt=b.dataset.fmt;
+      Array.prototype.forEach.call(document.querySelectorAll("[data-fmt]"),function(o){o.setAttribute("aria-pressed",String(o===b));});
+      renderNote();};
+  });
+
+  function syncFilters(){
+    Array.prototype.forEach.call(fbox.querySelectorAll("[data-k]"),function(b){
+      b.setAttribute("aria-pressed",String(!!HD.state.filters[b.dataset.k]));});
+  }
+
+  function renderAll(){ paint(); renderContents(); renderIndex(); renderRun(); renderNote(); syncFilters(); }
+  HD.on(renderAll);
+
+  window.addEventListener("resize",function(){ sizeBook(); if(glassOn) buildLens(); });
+  window.addEventListener("hashchange",function(){ if(readHash()) paint(); });
+  setTimeout(function(){ $("#hint").classList.add("gone"); }, 9000);
+
+  setZoom(1);
+  readHash();
+  renderAll();
+
+  if(window.SHEET && window.SHEET.ready){
+    window.SHEET.ready.then(function(){ sizeBook(); dressAll(); if(glassOn) buildLens(); });
+  }
+})();
+</script>
+</body>
+</html>

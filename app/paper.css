@@ -1,0 +1,257 @@
+/* ============================================================
+   Paper, the design system.
+   The palette, the type scale and the tracking come from an earlier
+   sketchbook by MMAH. The page loads this file, then adds its layout.
+   ============================================================ */
+
+/* Self hosted, so the page makes no outside request and works with the
+   internet down. Both families are under the SIL Open Font License, see
+   assets/ref/LICENSE-fonts-OFL.md */
+@font-face{font-family:'Instrument Serif';font-style:normal;font-weight:400;font-display:block;
+  src:url(../assets/ref/instrument-serif.woff2) format('woff2')}
+@font-face{font-family:'Instrument Serif';font-style:italic;font-weight:400;font-display:block;
+  src:url(../assets/ref/instrument-serif-italic.woff2) format('woff2')}
+@font-face{font-family:'Newsreader';font-style:normal;font-weight:200 600;font-display:swap;
+  src:url(../assets/ref/newsreader.woff2) format('woff2')}
+
+:root{
+  --paper:#ece7dc;
+  --page:#f2eee4;
+  --ink:#2b2721;
+  --ink-note:rgba(43,39,33,.90);
+  --ink-soft:rgba(43,39,33,.58);
+  --ink-faint:rgba(43,39,33,.36);
+  --hairline:rgba(43,39,33,.14);
+  --earth:#9a6a3e;
+  --display:'Instrument Serif',"New York",Georgia,'Times New Roman',serif;
+  --font:'Newsreader',"New York",Georgia,'Times New Roman',serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Cascadia Mono",monospace;
+  --track-caps:.24em;
+  --track-nav:.06em;
+  /* added for this tool, kept in his register */
+  --sage:#8d9b84;
+  --rose:#b98a7a;
+  --slate:#6f7f86;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+html{background:var(--paper)}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font);
+  font-weight:400;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;
+}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;padding:0}
+::selection{background:rgba(154,106,62,.22)}
+
+/* ---------- the wash ----------
+   A soft ground behind everything, built from gradients and grain so the
+   repository carries no image files. */
+.wash{position:fixed;inset:0;z-index:-2;pointer-events:none;opacity:.85;
+  background:
+    radial-gradient(60% 45% at 12% 8%, rgba(141,155,132,.20), transparent 62%),
+    radial-gradient(52% 40% at 88% 6%, rgba(185,138,122,.16), transparent 60%),
+    radial-gradient(70% 50% at 50% 104%, rgba(154,106,62,.12), transparent 66%),
+    radial-gradient(40% 30% at 82% 78%, rgba(111,127,134,.12), transparent 64%),
+    var(--paper);
+}
+.wash::after{content:"";position:absolute;inset:0;opacity:.30;mix-blend-mode:multiply;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4'/></filter><rect width='200' height='200' filter='url(%23g)' opacity='.5'/></svg>");
+}
+
+/* ---------- fixed header ---------- */
+.top{
+  position:fixed;left:0;right:0;top:0;z-index:500;pointer-events:none;
+  display:flex;flex-direction:column;align-items:center;gap:11px;text-align:center;
+  padding:18px clamp(16px,4vw,48px) 64px;
+}
+.top::before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to bottom,var(--paper) 0%,rgba(236,231,220,.86) 52%,rgba(236,231,220,0) 100%);z-index:-1}
+.top > *{pointer-events:auto}
+.top .name{font-family:var(--display);font-size:clamp(24px,2.4vw,30px);letter-spacing:.01em;line-height:1;white-space:nowrap}
+.top nav{display:flex;gap:18px;align-items:center}
+.top nav a,.top nav button{
+  color:var(--ink-soft);font-size:14px;letter-spacing:var(--track-nav);
+  transition:color .2s ease;cursor:pointer;
+}
+.top nav a:hover,.top nav button:hover{color:var(--ink)}
+.top nav .tally{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--earth)}
+@media (max-width:640px){
+  .top{padding-bottom:40px;gap:7px}
+  .top .name{font-size:21px}
+  .top nav{gap:13px}
+  .top nav a,.top nav button{font-size:13px}
+}
+
+/* ---------- hero ---------- */
+.hero{
+  position:relative;display:grid;align-content:center;justify-items:center;
+  /* an implicit grid column sizes to its content, so a wide child would
+     stretch the column and push the page sideways. Pin it to the hero. */
+  grid-template-columns:minmax(0,1fr);
+  min-height:100svh;padding:clamp(112px,13svh,152px) 0 clamp(72px,10svh,120px);
+}
+.hero-kicker{
+  margin:0 0 clamp(22px,3.4vh,40px);text-align:center;text-transform:uppercase;
+  font-size:12px;font-weight:400;letter-spacing:var(--track-caps);color:var(--ink-soft);
+}
+
+/* ---------- botany, the watercolour corners ----------
+   Drawn in SVG so the repository carries no image files. */
+.botany{position:absolute;bottom:0;width:clamp(120px,15vw,250px);opacity:.5;pointer-events:none;user-select:none;z-index:0}
+.botany.l{left:clamp(-40px,-1vw,0px);bottom:2%}
+.botany.r{right:clamp(-30px,0vw,10px);bottom:-2%;width:clamp(100px,12vw,200px)}
+@media (max-width:900px){.botany{display:none}}
+
+/* ---------- rules and labels ---------- */
+.rule{height:1px;max-width:1080px;margin:0 auto;
+  background:linear-gradient(90deg,transparent,var(--hairline) 14%,var(--hairline) 86%,transparent)}
+.rule.short{max-width:560px}
+.section-label{margin:0 0 18px;font-size:12px;text-transform:uppercase;letter-spacing:var(--track-caps);color:var(--ink-faint)}
+
+/* ---------- the tools under the book ---------- */
+.sb-tools{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+.tool{
+  display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border-radius:50%;color:var(--ink-faint);cursor:pointer;transition:all .18s ease;
+  border:1px solid transparent;
+}
+.tool:hover:not(:disabled){color:var(--ink)}
+.tool:disabled{opacity:.34;cursor:default}
+.tool[aria-pressed="true"]{color:var(--earth);border-color:rgba(154,106,62,.42)}
+.tool:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+.tool svg{width:17px;height:17px}
+.tool.wide{width:auto;height:28px;border-radius:14px;padding:0 12px;font-size:11px;
+  letter-spacing:.12em;text-transform:uppercase}
+.zoom-read{min-width:42px;text-align:center;font-size:11px;letter-spacing:.1em;
+  font-variant-numeric:tabular-nums;color:var(--ink-faint)}
+.tool-sep{width:1px;height:16px;background:var(--hairline)}
+.sb-hint{margin:0;font-size:11px;text-transform:uppercase;letter-spacing:.14em;
+  color:var(--ink-faint);transition:opacity .5s ease;text-align:center}
+.sb-hint.gone{opacity:0}
+.sb-caption{font-size:12px;text-transform:uppercase;letter-spacing:var(--track-caps);color:var(--ink-soft);text-align:center}
+
+/* ---------- the plate index rows ---------- */
+.plates{max-width:1080px;margin:0 auto;padding:clamp(48px,7vh,80px) clamp(20px,5vw,56px)}
+.plate-list{list-style:none;margin:0;padding:0;display:grid}
+.plate{
+  width:100%;display:flex;align-items:baseline;gap:18px;text-align:left;cursor:pointer;
+  padding:15px 4px;transition:padding-left .25s ease,color .2s ease;
+  border-bottom:1px solid var(--hairline);
+}
+.plate:hover{padding-left:14px}
+.plate:focus-visible{outline:2px solid var(--earth);outline-offset:-2px}
+.plate .n{min-width:28px;font-size:11px;letter-spacing:.18em;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+.plate .t{font-family:var(--display);font-size:clamp(20px,2vw,26px);transition:color .2s ease;line-height:1.15}
+.plate[aria-current="true"] .t,.plate.is-on .t{color:var(--earth)}
+.plate .p{margin-left:auto;font-size:12px;text-transform:uppercase;letter-spacing:var(--track-caps);color:var(--ink-faint);white-space:nowrap}
+@media (max-width:640px){.plate .p{display:none}}
+
+/* ---------- about and foot ---------- */
+.about{position:relative;max-width:1080px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:32px;
+  align-items:center;padding:clamp(56px,8vh,96px) clamp(20px,5vw,56px)}
+@media (min-width:900px){.about{grid-template-columns:1fr auto}}
+.bio{margin:0;font-size:clamp(17px,1.5vw,20px);font-weight:300;line-height:1.72;color:var(--ink)}
+.foot{max-width:760px;margin:0 auto;padding:clamp(40px,6vh,72px) 24px clamp(56px,8vh,88px);
+  text-align:center;font-size:13px;font-weight:300;line-height:1.9;color:var(--ink-faint)}
+.foot a{border-bottom:1px solid var(--hairline)}
+
+/* ---------- safety stamps ---------- */
+.stamps{display:flex;flex-wrap:wrap;gap:6px}
+.stamp{
+  font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;padding:4px 8px;line-height:1.2;
+  border:1px solid currentColor;border-radius:1px;white-space:nowrap;
+}
+.stamp.info{color:var(--slate)}
+.stamp.low{color:var(--earth)}
+.stamp.high{color:#8c3b2e;background:rgba(140,59,46,.07)}
+.stamp.admin{color:var(--ink-soft)}
+.stamp.warn{color:#8c3b2e}
+
+/* ---------- caution note ---------- */
+.caution{border-left:2px solid #8c3b2e;padding:9px 0 9px 13px;background:rgba(140,59,46,.045)}
+.caution b{display:block;font-size:10px;letter-spacing:var(--track-caps);text-transform:uppercase;
+  color:#8c3b2e;font-weight:400;margin-bottom:5px}
+.caution p{margin:0 0 3px;font-size:13.5px;line-height:1.55;color:#6d3a2e}
+.caution p:last-child{margin-bottom:0}
+.caution.low{border-left-color:var(--earth);background:rgba(154,106,62,.05)}
+.caution.low b{color:var(--earth)}
+.caution.low p{color:#6b4c2c}
+
+/* ---------- the tick ---------- */
+.tick{display:inline-flex;align-items:center;gap:10px;cursor:pointer;user-select:none;font-size:15px}
+.tick input{position:absolute;opacity:0;width:0;height:0}
+.tick .box{width:19px;height:19px;border:1px solid var(--ink-faint);display:grid;place-items:center;
+  flex:0 0 auto;background:rgba(255,255,255,.4);border-radius:1px;color:var(--earth)}
+.tick .box svg{opacity:0;transform:scale(.55);transition:opacity .14s,transform .14s}
+.tick input:checked + .box{border-color:var(--earth)}
+.tick input:checked + .box svg{opacity:1;transform:scale(1)}
+.tick input:focus-visible + .box{outline:2px solid var(--earth);outline-offset:2px}
+
+/* ---------- ruled writing line ---------- */
+.ruled{
+  width:100%;border:0;border-radius:0;resize:vertical;color:var(--ink);
+  font-family:var(--font);font-size:15px;line-height:28px;padding:0;
+  background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 27px,var(--hairline) 27px,var(--hairline) 28px);
+  background-attachment:local;
+}
+.ruled:focus{outline:none;background-image:repeating-linear-gradient(to bottom,transparent 0,transparent 27px,rgba(154,106,62,.42) 27px,rgba(154,106,62,.42) 28px)}
+.ruled::placeholder{color:var(--ink-faint)}
+
+/* ---------- small caps field label ---------- */
+.fl{font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--ink-faint)}
+
+/* ---------- ghost button ---------- */
+.gbtn{
+  border:1px solid var(--hairline);border-radius:2px;padding:8px 12px;cursor:pointer;
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);
+  transition:border-color .2s,color .2s;white-space:nowrap;background:rgba(255,255,255,.22);
+}
+.gbtn:hover{border-color:var(--ink-faint);color:var(--ink)}
+.gbtn:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+.gbtn.warn{border-color:rgba(140,59,46,.5);color:#8c3b2e}
+.gbtn.warn:hover{background:rgba(140,59,46,.08)}
+
+/* ---------- search ---------- */
+.seek{position:relative;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--hairline);padding:8px 0}
+.seek:focus-within{border-bottom-color:var(--ink-faint)}
+.seek svg{opacity:.38;flex:0 0 auto}
+.seek input{flex:1;min-width:0;background:none;border:0;font-family:var(--display);
+  font-size:clamp(19px,2vw,24px);color:var(--ink);padding:2px 0}
+.seek input:focus{outline:none}
+.seek input::placeholder{color:var(--ink-faint)}
+
+/* ---------- filter row ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:16px;padding:14px 0}
+.filters button{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);
+  cursor:pointer;padding-bottom:3px;border-bottom:1px solid transparent;transition:color .2s,border-color .2s;
+}
+.filters button:hover{color:var(--ink-soft)}
+.filters button[aria-pressed="true"]{color:var(--earth);border-bottom-color:var(--earth)}
+.filters button:focus-visible{outline:2px solid var(--earth);outline-offset:2px}
+
+/* ---------- toast and copy fallback ---------- */
+#toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,14px);z-index:900;
+  background:var(--ink);color:var(--paper);font-size:12px;letter-spacing:.1em;text-transform:uppercase;
+  padding:11px 18px;border-radius:2px;opacity:0;pointer-events:none;transition:.18s}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#fallback{position:fixed;inset:0;z-index:950;background:rgba(43,39,33,.5);display:none;place-items:center;padding:20px}
+#fallback.on{display:grid}
+#fallback .sheet{background:var(--page);border:1px solid var(--hairline);padding:20px;max-width:640px;width:100%;
+  box-shadow:0 20px 50px rgba(43,39,33,.22)}
+#fallback textarea{width:100%;min-height:240px;font-family:var(--mono);font-size:12px;padding:10px;
+  background:#fff;border:1px solid var(--hairline);color:var(--ink)}
+
+.skip{position:absolute;left:-9999px}
+.skip:focus{left:14px;top:14px;z-index:999;background:var(--ink);color:var(--paper);padding:9px 14px}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}

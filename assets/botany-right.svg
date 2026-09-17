@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 400" width="220" height="400" aria-hidden="true">
+  <defs>
+    <filter id="wr" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="4" seed="31" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="24" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feGaussianBlur in="d" stdDeviation="3"/>
+    </filter>
+    <filter id="wr2" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="5" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="15" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feGaussianBlur in="d" stdDeviation="1.6"/>
+    </filter>
+    <filter id="softr" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="15"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softr)" opacity=".4">
+    <ellipse cx="156" cy="318" rx="86" ry="78" fill="#a9b39c"/>
+    <ellipse cx="80" cy="366" rx="70" ry="50" fill="#d6c19a"/>
+    <ellipse cx="188" cy="236" rx="52" ry="58" fill="#b98a7a"/>
+  </g>
+
+  <!-- tall stems, drawn from the right edge inward -->
+  <g filter="url(#wr)" style="mix-blend-mode:multiply">
+    <g opacity=".58" fill="#7d8b71">
+      <path d="M176 396 C180 330 176 268 160 214 C154 194 146 180 138 172 C144 194 151 220 157 250 C167 298 173 350 174 396 Z"/>
+      <path d="M138 172 C130 175 119 171 110 161 C118 177 128 187 137 190 Z"/>
+      <path d="M148 206 C139 211 126 209 115 199 C125 217 137 227 148 228 Z"/>
+      <path d="M157 246 C147 252 133 250 121 240 C132 259 146 270 158 270 Z"/>
+      <path d="M166 290 C155 296 140 295 127 285 C139 306 154 317 167 317 Z"/>
+      <path d="M172 334 C161 340 146 340 133 330 C145 351 160 362 173 362 Z"/>
+    </g>
+  </g>
+
+  <!-- orchid like blooms -->
+  <g filter="url(#wr2)" style="mix-blend-mode:multiply">
+    <g opacity=".52" fill="#b98a7a">
+      <ellipse cx="192" cy="228" rx="17" ry="13" transform="rotate(-18 192 228)"/>
+      <ellipse cx="170" cy="250" rx="13" ry="11" transform="rotate(12 170 250)"/>
+      <ellipse cx="200" cy="262" rx="11" ry="10"/>
+      <ellipse cx="150" cy="288" rx="10" ry="9"/>
+    </g>
+    <g opacity=".44" fill="#c9a86a">
+      <ellipse cx="186" cy="238" rx="6" ry="5"/>
+      <ellipse cx="176" cy="256" rx="4" ry="4"/>
+      <ellipse cx="196" cy="268" rx="4" ry="4"/>
+    </g>
+    <g opacity=".34" fill="#6f7f86">
+      <path d="M104 398 C102 366 108 340 120 320 C120 344 114 372 112 398 Z"/>
+      <ellipse cx="120" cy="312" rx="6" ry="9"/>
+      <ellipse cx="108" cy="330" rx="5" ry="7"/>
+    </g>
+  </g>
+</svg>

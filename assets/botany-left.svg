@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 420" width="260" height="420" aria-hidden="true">
+  <defs>
+    <filter id="wl" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.016" numOctaves="4" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="26" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feGaussianBlur in="d" stdDeviation="3.2"/>
+    </filter>
+    <filter id="wl2" x="-25%" y="-25%" width="150%" height="150%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="19" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="17" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feGaussianBlur in="d" stdDeviation="1.7"/>
+    </filter>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+  </defs>
+
+  <!-- soft ground wash -->
+  <g filter="url(#soft)" opacity=".42">
+    <ellipse cx="72" cy="330" rx="96" ry="84" fill="#8d9b84"/>
+    <ellipse cx="150" cy="378" rx="80" ry="56" fill="#c8b98f"/>
+    <ellipse cx="40" cy="238" rx="58" ry="62" fill="#a9b39c"/>
+  </g>
+
+  <!-- fern fronds -->
+  <g filter="url(#wl)" style="mix-blend-mode:multiply">
+    <g opacity=".62" fill="#78876c">
+      <path d="M52 404 C50 340 56 282 74 228 C80 210 88 196 96 188 C92 210 86 236 80 266 C72 312 66 358 64 404 Z"/>
+      <path d="M96 188 C104 190 116 186 126 176 C118 192 108 202 98 206 Z"/>
+      <path d="M88 218 C98 222 112 219 124 209 C114 227 102 238 90 240 Z"/>
+      <path d="M80 254 C91 259 106 257 119 247 C108 266 95 277 82 278 Z"/>
+      <path d="M72 294 C84 300 100 298 114 288 C102 308 88 319 74 320 Z"/>
+      <path d="M66 336 C79 342 95 341 110 331 C97 352 82 363 68 364 Z"/>
+    </g>
+    <g opacity=".5" fill="#93a087">
+      <path d="M150 412 C146 356 150 306 164 262 C170 244 178 231 186 224 C182 244 176 268 171 294 C163 334 156 374 154 412 Z"/>
+      <path d="M186 224 C194 227 205 224 214 215 C207 230 197 239 188 242 Z"/>
+      <path d="M177 258 C186 263 199 261 210 252 C200 269 189 279 178 280 Z"/>
+      <path d="M168 298 C178 304 192 303 204 294 C193 312 180 322 168 322 Z"/>
+    </g>
+  </g>
+
+  <!-- small blossoms -->
+  <g filter="url(#wl2)" style="mix-blend-mode:multiply">
+    <g opacity=".5" fill="#b98a7a">
+      <ellipse cx="118" cy="300" rx="13" ry="11"/>
+      <ellipse cx="134" cy="316" rx="10" ry="9"/>
+      <ellipse cx="108" cy="322" rx="9" ry="8"/>
+      <ellipse cx="196" cy="352" rx="11" ry="10"/>
+      <ellipse cx="210" cy="368" rx="8" ry="8"/>
+    </g>
+    <g opacity=".4" fill="#c9a86a">
+      <ellipse cx="128" cy="308" rx="5" ry="5"/>
+      <ellipse cx="203" cy="360" rx="4" ry="4"/>
+      <ellipse cx="60" cy="286" rx="6" ry="5"/>
+    </g>
+  </g>
+
+  <!-- seed heads -->
+  <g filter="url(#wl2)" opacity=".42" fill="#6f7f86" style="mix-blend-mode:multiply">
+    <path d="M222 414 C220 380 224 350 234 326 C236 348 234 380 232 414 Z"/>
+    <ellipse cx="234" cy="318" rx="7" ry="10"/>
+    <ellipse cx="246" cy="334" rx="5" ry="8"/>
+    <ellipse cx="223" cy="336" rx="5" ry="8"/>
+  </g>
+</svg>
