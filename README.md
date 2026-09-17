@@ -41,10 +41,29 @@ same network, add `--bind 0.0.0.0` and use the computer's address instead of
 | `app/paper.css` | The design system. Palette, type scale, the shared parts. |
 | `app/sheet.js` | The paper itself, drawn in code. Fold, seam, cut edge, tooth. |
 | `index.html` | The book. Page turning, the reading glass, the index, the notes. |
+| `smoke.js` | Checks the data and the behaviour without a browser. |
 
 The command data is kept apart from everything that draws it. To add a command,
 add an object to `data/commands.js` and it appears in the book, in the index, in
 the search and in the filters. No other file needs to change.
+
+## Checking it
+
+`smoke.js` checks the whole thing without a browser: that all 100 commands are
+present and complete, that the filters and the search do what they say, that the
+ticket note carries no markup characters and invents nothing, that a pasted
+result cannot break the note, and that there is no code path that executes a
+command.
+
+```bash
+node smoke.js
+```
+
+No node installed? It runs in a container with nothing to set up:
+
+```bash
+docker run --rm -v "$PWD":/app:ro node:22-alpine node /app/smoke.js
+```
 
 ## The commands
 
